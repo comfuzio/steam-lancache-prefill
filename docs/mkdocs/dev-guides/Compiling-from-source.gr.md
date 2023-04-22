@@ -15,8 +15,8 @@ choco install dotnet-6.0-sdk
 ## Διορθώνοντας το αρχικό config του Nuget 
 
 ```powershell
-# Needs to be removed, in order to resolve issue with Nuget being preconfigured wrong.  
-# Will auto-regenerate on first run.
+# Πρέπει να σβηστεί, για να λύσουμε το θέμα με την λάθος προρύθμιση του Buget.  
+# Θα αυτόδημιουργηθεί με την πρώτη εκτέλεση.
 Remove-Item "C:\Users\$Env:USERNAME\AppData\Roaming\NuGet\nuget.config"
 ```
 
@@ -48,7 +48,7 @@ dotnet build
 dotnet run
 ```
 
-Είναι ανάλογο με το από πάνω αλλά χωρίς παραμέτρους `./SteamPrefill.exe`. Οπότε τρέχουμε αυτό αν θέλουμε να βάλουμε παραμέτρους :
+Είναι ανάλογο με το από πάνω αλλά χωρίς παραμέτρους `./SteamPrefill.exe`. Οπότε τρέχουμε αυτό αν θέλουμε να βάλουμε παραμέτρους:
 ```powershell
 dotnet run -- prefill --all
 ```

@@ -9,8 +9,10 @@ This project is using [mkdocs](https://www.mkdocs.org) to generate the static do
 choco install python
 
 # Installs required mkdocs package
-pip install mkdocs mkdocs-awesome-pages-plugin mkdocs-static-i18n mkdocs-macros-plugin
+pip install -r requirements.txt
 ```
+
+-----
 
 ## Project Layout
 
@@ -19,11 +21,15 @@ pip install mkdocs mkdocs-awesome-pages-plugin mkdocs-static-i18n mkdocs-macros-
         index.md  # The documentation homepage.
         ...       # Other markdown pages, images and other files.
 
+-----
+
 ## Making Changes
 
 **mkdocs** has a built in server that will watch for changes being made, and immediately display those changes.  
 
 You can launch the the live server using `mkdocs serve`, and open `http://127.0.0.1:8000/` in your browser.  You can now make edits and have the page automatically refresh and display those changes!
+
+-----
 
 ## Helpful links
 

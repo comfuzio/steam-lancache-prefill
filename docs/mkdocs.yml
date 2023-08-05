@@ -1,17 +1,19 @@
 site_name: steam-lancache-prefill wiki
-repo_url: https://github.com/tpill90/steam-lancache-prefill
 docs_dir: mkdocs
+repo_url: https://github.com/tpill90/steam-lancache-prefill
 site_url: https://tpill90.github.io/steam-lancache-prefill
 
 extra_css:
   - assets/external/asciinema-player.css
   - assets/language-picker.css
+  - assets/copy-to-clipboard.css
   - assets/extra.css
 extra_javascript:
   - assets/external/asciinema-player.min.js
   - assets/external/clipboard.min.js
   - assets/external/popper.min.js
   - assets/external/tippy-bundle.umd.min.js
+  - assets/copy-to-clipboard.js
   - assets/extra.js
   
 # Defines global variables that can be used by templates
@@ -28,6 +30,9 @@ theme:
   # For defaults see : https://github.com/mkdocs/mkdocs/tree/master/mkdocs/themes/readthedocs
   custom_dir: custom_theme/
   highlightjs: true
+  # Examples of themes - https://highlightjs.org/static/demo/
+  # Find which themese are available on the cdn - https://cdnjs.com/libraries/highlight.js
+  hljs_style: default
   hljs_languages:
     - powershell
 
@@ -42,8 +47,14 @@ markdown_extensions:
       permalink: True
   - tables
 
-# https://github.com/mkdocs/mkdocs/wiki/MkDocs-Plugins
+# https://github.com/mkdocs/catalog
 plugins:
+  # Fails the build if any of the external or internal links 404
+  # See for more info : https://github.com/manuzhang/mkdocs-htmlproofer-plugin
+  - htmlproofer:
+      enabled: !ENV [ENABLED_HTMLPROOFER, False]
+      validate_external_urls: True
+      raise_error: True
   # https://github.com/lukasgeiter/mkdocs-awesome-pages-plugin
   - awesome-pages:
       strict: true
@@ -59,7 +70,7 @@ plugins:
         gr:
           name: Ελληνικά
           build: true
-  # Allows global variables 
+  # Allows global variables - https://github.com/fralau/mkdocs_macros_plugin
   - macros
 
 nav:

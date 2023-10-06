@@ -81,6 +81,7 @@
             var failedRequests = new ConcurrentBag<QueuedRequest>();
 
             var cdnServer = _cdnPool.TakeConnection();
+            //TODO consider wrapping each parallel task in another timeout to see if it fixes peoples hanging issues
             await Parallel.ForEachAsync(requestsToDownload, new ParallelOptions { MaxDegreeOfParallelism = downloadArgs.MaxConcurrentRequests }, async (request, _) =>
             {
                 var buffer = new byte[4096];
@@ -99,9 +100,10 @@
                     {
                     }
                 }
-                catch
+                catch (Exception e)
                 {
                     failedRequests.Add(request);
+                    FileLogger.LogException($"Request /depot/{request.DepotId}/chunk/{request.ChunkId} failed", e);
                 }
                 progressTask.Increment(request.CompressedLength);
             });

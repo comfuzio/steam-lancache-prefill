@@ -16,10 +16,7 @@
             _ansiConsole = ansiConsole;
             _cdnPool = cdnPool;
 
-            _client = new HttpClient
-            {
-                Timeout = AppConfig.SteamKitRequestTimeout
-            };
+            _client = new HttpClient();
             _client.DefaultRequestHeaders.Add("User-Agent", "Valve/Steam HTTP Client 1.0");
         }
 
@@ -49,11 +46,11 @@
                 failedRequests = await AttemptDownloadAsync(ctx, "Downloading..", queuedRequests, downloadArgs);
 
                 // Handle any failed requests
-                while (failedRequests.Any() && retryCount < 3)
+                while (failedRequests.Any() && retryCount < 2)
                 {
                     retryCount++;
                     await Task.Delay(2000 * retryCount);
-                    failedRequests = await AttemptDownloadAsync(ctx, $"Retrying  {retryCount}..", failedRequests.ToList(), downloadArgs);
+                    failedRequests = await AttemptDownloadAsync(ctx, $"Retrying  {retryCount}..", failedRequests.ToList(), downloadArgs, forceRecache: true);
                 }
             });
 
@@ -67,13 +64,14 @@
             return false;
         }
 
-
+        //TODO I don't like the number of parameters here, should maybe rethink the way this is written.
         /// <summary>
-        /// Attempts to download the specified requests.  Returns a list of any requests that have failed.
+        /// Attempts to download the specified requests.  Returns a list of any requests that have failed for any reason.
         /// </summary>
+        /// <param name="forceRecache">When specified, will cause the cache to delete the existing cached data for a request, and redownload it again.</param>
         /// <returns>A list of failed requests</returns>
-        [SuppressMessage("Reliability", "CA2016:Forward the 'CancellationToken' parameter to methods", Justification = "Don't have a need to cancel")]
-        public async Task<ConcurrentBag<QueuedRequest>> AttemptDownloadAsync(ProgressContext ctx, string taskTitle, List<QueuedRequest> requestsToDownload, DownloadArguments downloadArgs)
+        public async Task<ConcurrentBag<QueuedRequest>> AttemptDownloadAsync(ProgressContext ctx, string taskTitle, List<QueuedRequest> requestsToDownload,
+                                                                                DownloadArguments downloadArgs, bool forceRecache = false)
         {
             double requestTotalSize = requestsToDownload.Sum(e => e.CompressedLength);
             var progressTask = ctx.AddTask(taskTitle, new ProgressTaskSettings { MaxValue = requestTotalSize });
@@ -81,33 +79,39 @@
             var failedRequests = new ConcurrentBag<QueuedRequest>();
 
             var cdnServer = _cdnPool.TakeConnection();
-            //TODO consider wrapping each parallel task in another timeout to see if it fixes peoples hanging issues
-            await Parallel.ForEachAsync(requestsToDownload, new ParallelOptions { MaxDegreeOfParallelism = downloadArgs.MaxConcurrentRequests }, async (request, _) =>
+            await Parallel.ForEachAsync(requestsToDownload, new ParallelOptions { MaxDegreeOfParallelism = downloadArgs.MaxConcurrentRequests }, body: async (request, _) =>
             {
-                var buffer = new byte[4096];
                 try
                 {
                     var url = $"http://{_lancacheAddress}/depot/{request.DepotId}/chunk/{request.ChunkId}";
+                    if (forceRecache)
+                    {
+                        url += "?nocache=1";
+                    }
                     using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
                     requestMessage.Headers.Host = cdnServer.Host;
 
-                    var response = await _client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
-                    using Stream responseStream = await response.Content.ReadAsStreamAsync();
+                    using var cts = new CancellationTokenSource();
+                    using var response = await _client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                    using Stream responseStream = await response.Content.ReadAsStreamAsync(cts.Token);
                     response.EnsureSuccessStatusCode();
 
                     // Don't save the data anywhere, so we don't have to waste time writing it to disk.
-                    while (await responseStream.ReadAsync(buffer, 0, buffer.Length, _) != 0)
+                    var buffer = new byte[4096];
+                    while (await responseStream.ReadAsync(buffer, cts.Token) != 0)
                     {
                     }
                 }
                 catch (Exception e)
                 {
                     failedRequests.Add(request);
+                    _ansiConsole.LogMarkupLine(Red($"Request /depot/{request.DepotId}/chunk/{request.ChunkId} failed : {e.GetType()}"));
                     FileLogger.LogExceptionNoStackTrace($"Request /depot/{request.DepotId}/chunk/{request.ChunkId} failed", e);
                 }
                 progressTask.Increment(request.CompressedLength);
             });
 
+            //TODO In the scenario where a user still had all requests fail, potentially display a warning that there is an underlying issue
             // Only return the connections for reuse if there were no errors
             if (failedRequests.IsEmpty)
             {

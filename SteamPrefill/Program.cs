@@ -2,7 +2,6 @@ namespace SteamPrefill
 {
     public static class Program
     {
-        //TODO - Loading app metadata when specifying --all used to be faster.  I think it used to skip over downloading DLC depots.  Something must have changed, look into it.
         public static async Task<int> Main()
         {
             try
@@ -81,8 +80,17 @@ namespace SteamPrefill
                 args.Remove("--no-download");
             }
 
+            // Skips using locally cached manifests. Saves disk space, at the expense of slower subsequent runs.
+            // Useful for debugging since the manifests will always be re-downloaded.
+            if (args.Any(e => e.Contains("--nocache")))
+            {
+                AnsiConsole.Console.LogMarkupLine($"Using {LightYellow("--nocache")} flag.  Will always re-download manifests...");
+                AppConfig.NoLocalCache = true;
+                args.Remove("--nocache");
+            }
+
             // Adding some formatting to logging to make it more readable + clear that these flags are enabled
-            if (AppConfig.EnableSteamKitDebugLogs || AppConfig.SkipDownloads)
+            if (AppConfig.EnableSteamKitDebugLogs || AppConfig.SkipDownloads || AppConfig.NoLocalCache)
             {
                 AnsiConsole.Console.WriteLine();
                 AnsiConsole.Console.Write(new Rule());

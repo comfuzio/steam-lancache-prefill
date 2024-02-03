@@ -48,9 +48,6 @@ namespace SteamPrefill.Settings
         //TODO comment
         public static bool SkipDownloads { get; set; }
 
-        //TODO comment
-        public static TimeSpan SteamKitRequestTimeout => TimeSpan.FromSeconds(60);
-
         /// <summary>
         /// Downloaded manifests, as well as other metadata, are saved into this directory to speedup future prefill runs.
         /// All data in here should be able to be deleted safely.
@@ -93,5 +90,10 @@ namespace SteamPrefill.Settings
         public static readonly string DebugOutputDir = Path.Combine(CacheDir, "Debugging");
 
         #endregion
+
+        /// <summary>
+        /// Skips using locally cached manifests. Saves disk space, at the expense of slower subsequent runs.  Intended for debugging.
+        /// </summary>
+        public static bool NoLocalCache { get; set; }
     }
 }

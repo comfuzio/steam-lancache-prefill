@@ -51,10 +51,6 @@ namespace SteamPrefill.CliCommands.Benchmark
 
         public void PrintSummary(IAnsiConsole ansiConsole)
         {
-            // White spacing + a horizontal rule to delineate that the command has completed
-            ansiConsole.WriteLine();
-            ansiConsole.Write(new Rule());
-
             // Setting up final formatting, to make sure padding and alignment is correct
             var grid = new Grid()
                        .AddColumn(new GridColumn())
@@ -238,7 +234,7 @@ namespace SteamPrefill.CliCommands.Benchmark
     [Intellenum(typeof(string))]
     public sealed partial class PresetWorkload
     {
-        public static readonly PresetWorkload Destiny2 = new PresetWorkload("1085660");
-        public static readonly PresetWorkload Dota2 = new PresetWorkload("570");
+        public static readonly PresetWorkload BigChunks = new PresetWorkload("1085660");
+        public static readonly PresetWorkload SmallChunks = new PresetWorkload("570");
     }
 }

@@ -20,7 +20,18 @@ namespace SteamPrefill.Handlers.Steam
         /// </summary>
         private uint CellId
         {
-            get => File.Exists(AppConfig.CachedCellIdPath) ? uint.Parse(File.ReadAllText(AppConfig.CachedCellIdPath)) : 0;
+            get
+            {
+                if (AppConfig.CellIdOverride != null)
+                {
+                    return AppConfig.CellIdOverride.Value;
+                }
+                if (File.Exists(AppConfig.CachedCellIdPath))
+                {
+                    return uint.Parse(File.ReadAllText(AppConfig.CachedCellIdPath));
+                }
+                return 0;
+            }
             set => File.WriteAllText(AppConfig.CachedCellIdPath, value.ToString());
         }
 
@@ -28,11 +39,10 @@ namespace SteamPrefill.Handlers.Steam
 
         // Steam services
         private readonly SteamClient _steamClient;
-        private readonly SteamUser _steamUser;
         public readonly SteamContent SteamContent;
         public readonly SteamApps SteamAppsApi;
         public readonly Client CdnClient;
-        public SteamUnifiedMessages.UnifiedService<IPlayer> unifiedPlayerService;
+        public Player unifiedPlayerService;
         private readonly CallbackManager _callbackManager;
 
         private SteamUser.LogOnDetails _logonDetails;
@@ -50,15 +60,12 @@ namespace SteamPrefill.Handlers.Steam
             _ansiConsole = ansiConsole;
 
             _steamClient = new SteamClient(SteamConfiguration.Create(e => e.WithCellID(CellId)
-                                                                           // TODO remove this line when this PR is merged and deployed https://github.com/SteamRE/SteamKit/pull/1420
-                                                                           .WithProtocolTypes(ProtocolTypes.WebSocket)
-                                                                           .WithConnectionTimeout(TimeSpan.FromSeconds(10))));
+                                                               .WithConnectionTimeout(TimeSpan.FromSeconds(10))));
 
-            _steamUser = _steamClient.GetHandler<SteamUser>();
             SteamAppsApi = _steamClient.GetHandler<SteamApps>();
             SteamContent = _steamClient.GetHandler<SteamContent>();
             SteamUnifiedMessages steamUnifiedMessages = _steamClient.GetHandler<SteamUnifiedMessages>();
-            unifiedPlayerService = steamUnifiedMessages.CreateService<IPlayer>();
+            unifiedPlayerService = steamUnifiedMessages.CreateService<Player>();
 
             _callbackManager = new CallbackManager(_steamClient);
 
@@ -88,6 +95,12 @@ namespace SteamPrefill.Handlers.Steam
 
             _userAccountStore = UserAccountStore.LoadFromFile();
             LicenseManager = new LicenseManager(SteamAppsApi);
+
+            // Setting up optional SteamKit2 debug output.  Not enabled by default because it writes out way too much output that isn't useful outside of debugging.
+            if (AppConfig.DebugLogs)
+            {
+                DebugLog.AddListener(new SteamKitDebugListener(_ansiConsole));
+            }
         }
 
         public async Task LoginToSteamAsync()
@@ -122,7 +135,7 @@ namespace SteamPrefill.Handlers.Steam
                 }
             }
 
-            _ansiConsole.LogMarkupVerbose($"Connected to CM {LightYellow(_steamClient.CurrentEndPoint)}");
+            _ansiConsole.LogMarkupVerbose($"Connected to CM {Cyan(_steamClient.CurrentEndPoint)}");
         }
 
         private async Task GetAccessTokenAsync()
@@ -178,7 +191,7 @@ namespace SteamPrefill.Handlers.Steam
         /// <exception cref="SteamConnectionException">Throws if unable to connect to Steam</exception>
         private void ConnectToSteam()
         {
-            _ansiConsole.LogMarkupVerbose($"Connecting with CellId: {LightYellow(CellId)}");
+            _ansiConsole.LogMarkupVerbose($"Connecting with CellId: {Magenta(CellId)}");
             var timeoutAfter = DateTime.Now.AddSeconds(30);
 
             // Busy waiting until the client has a successful connection established
@@ -215,7 +228,7 @@ namespace SteamPrefill.Handlers.Steam
             _loggedOnCallbackResult = null;
 
             _logonDetails.AccessToken = _userAccountStore.AccessToken;
-            _steamUser.LogOn(_logonDetails);
+            _steamClient.GetHandler<SteamUser>().LogOn(_logonDetails);
 
             // Busy waiting for the callback to complete, then we can return the callback value synchronously
             while (_loggedOnCallbackResult == null)

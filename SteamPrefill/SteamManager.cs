@@ -63,9 +63,18 @@
 
         #region Prefill
 
-        public async Task DownloadMultipleAppsAsync(bool downloadAllOwnedGames, bool prefillRecentGames, int? prefillPopularGames)
+        /// <summary>
+        /// Given a list of AppIds, determines which apps require updates, and downloads the required depots.  By default,
+        /// it will always include apps chosen by the select-apps command.
+        /// </summary>
+        /// <param name="downloadAllOwnedGames">If set to true, all games owned by the user will be downloaded</param>
+        /// <param name="prefillRecentGames">If set to true, games played in the last 2 weeks will be downloaded</param>
+        /// <param name="prefillPopularGames">If set to a value > 0, the most popular N games will be downloaded</param>
+        /// <param name="prefillRecentlyPurchasedGames">If set to true, games purchased in the last 2 weeks will be downloaded</param>
+        public async Task DownloadMultipleAppsAsync(bool downloadAllOwnedGames, bool prefillRecentGames,
+                                                    int? prefillPopularGames, bool prefillRecentlyPurchasedGames)
         {
-            // Building out full list of AppIds to use.
+            // Building out the list of AppIds to download
             var appIdsToDownload = LoadPreviouslySelectedApps();
             if (downloadAllOwnedGames)
             {
@@ -82,6 +91,21 @@
                                    .Take(prefillPopularGames.Value)
                                    .Select(e => e.AppId);
                 appIdsToDownload.AddRange(popularGames);
+            }
+            if (prefillRecentlyPurchasedGames)
+            {
+                var recentApps = _steam3.LicenseManager.GetRecentlyPurchasedAppIds(30);
+                appIdsToDownload.AddRange(recentApps);
+
+                // Verbose logging for recently purchased games
+                await _appInfoHandler.RetrieveAppMetadataAsync(recentApps);
+                _ansiConsole.LogMarkupVerbose("[bold yellow]Recently purchased games (last 2 weeks):[/]");
+                foreach (var appId in recentApps)
+                {
+                    var purchaseDate = _steam3.LicenseManager.GetPurchaseDateForApp(appId);
+                    var appInfo = await _appInfoHandler.GetAppInfoAsync(appId);
+                    _ansiConsole.LogMarkupVerbose($"  {Green(appInfo.Name).PadRight(35)} - Purchased: {LightYellow(purchaseDate.ToLocalTime().ToString("yyyy-MM-dd"))}");
+                }
             }
 
             // AppIds can potentially be added twice when building out the full list of ids
